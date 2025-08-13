@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: red-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/wlgns1210/wskd1-red.git'
+    targetRevision: main
+    path: manifests
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: red
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
