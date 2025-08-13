@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: red-deploy
+  namespace: wsk25
+  labels:
+    app: red
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0    # 기존 Pod를 먼저 삭제하지 않음
+      maxSurge: 1          # 새 Pod를 1개씩 추가 생성
+  selector:
+    matchLabels:
+      app: red
+  template:
+    metadata:
+      labels:
+        app: red
+    spec:
+      tolerations:
+        - key: "app"
+          operator: "Equal"
+          value: "only"
+          effect: "NoSchedule"
+      nodeSelector:
+        eks.amazonaws.com/nodegroup: wsk-eks-ng-app
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: red-app
+          image: 932169417000.dkr.ecr.ap-northeast-2.amazonaws.com/wsk1/reapp:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: my-app-secret
+                  key: DB_USER
+            - name: DB_PASSWD
+              valueFrom:
+                secretKeyRef:
+                  name: my-app-secret
+                  key: DB_PASSWD
+            - name: DB_URL
+              value: wsk-rds-cluster.camzq634ttje.ap-northeast-2.rds.amazonaws.com
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      serviceAccountName: app-serviceaccount
